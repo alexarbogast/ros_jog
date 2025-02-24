@@ -1,0 +1,46 @@
+# 6R robot simulation hardware
+generic_hw_control_loop:
+  loop_hz: 1000
+  cycle_time_error_threshold: 0.01
+
+hardware_interface:
+  joints:
+    - joint1
+    - joint2
+    - joint3
+    - joint4
+    - joint5
+    - joint6
+  sim_control_mode: 0  # 0: position, 1: velocity
+
+joint_state_controller:
+  type: joint_state_controller/JointStateController
+  publish_rate: 100
+
+joint_position_controller:
+  type: position_controllers/JointGroupPositionController
+  joints:
+    - joint1
+    - joint2
+    - joint3
+    - joint4
+    - joint5
+    - joint6
+
+pose_controller:
+  type: taskspace_controllers/PoseController
+  joints:
+    - joint1
+    - joint2
+    - joint3
+    - joint4
+    - joint5
+    - joint6
+
+  base_link: base_link
+  eef_link: tool
+
+  k_position: 10.0
+  k_orient: 10.0
+
+  setpoint_topic: setpoint
