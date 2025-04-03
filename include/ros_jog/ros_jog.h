@@ -1,4 +1,4 @@
-// Copyright 2025 Rowan Ramamaurthy
+// Copyright 2025 Alex Arbogast Rowan Ramamaurthy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS_JOGGER_H
-#define ROS_JOGGER_H
+#ifndef ROS_JOG_H
+#define ROS_JOG_H
 
 #include <rqt_gui_cpp/plugin.h>
 #include <ros/ros.h>
@@ -32,19 +32,19 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <vector>
-#include "ros_jogger/controller_clients.h"  
-#include "ros_jogger/controller_manager_client.h"
+#include "ros_jog/controller_clients.h"  
+#include "ros_jog/controller_manager_client.h"
 
 using namespace std;
 
-namespace ros_jogger {
+namespace ros_jog {
 
-class RosJogger : public rqt_gui_cpp::Plugin
+class RosJog : public rqt_gui_cpp::Plugin
 {
   Q_OBJECT
 public:
-  RosJogger();
-  ~RosJogger();
+  RosJog();
+  ~RosJog();
   virtual void initPlugin(qt_gui_cpp::PluginContext& context);
   virtual void shutdownPlugin();
   virtual void saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cpp::Settings& instance_settings) const;
@@ -157,6 +157,6 @@ private:
   static constexpr int SLIDER_RESOLUTION = 1000;    // Number of slider steps
 };
 
-} // namespace ros_jogger
+} // namespace ros_jog
 
-#endif // ROS_JOGGER_H 
+#endif // ROS_JOG_H 

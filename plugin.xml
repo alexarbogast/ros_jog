@@ -1,7 +1,7 @@
-<library path="lib/libros_jogger">
-  <class name="ros_jogger/RosJogger" type="ros_jogger::RosJogger" base_class_type="rqt_gui_cpp::Plugin">
+<library path="lib/libros_jog">
+  <class name="ros_jog/RosJog" type="ros_jog::RosJog" base_class_type="rqt_gui_cpp::Plugin">
     <description>
-      A simple rqt plugin for publishing XYZ values
+      A simple RQT plugin for jogging a robot arm using a pose controller
     </description>
     <qtgui>
       <group>
@@ -9,7 +9,7 @@
         <icon type="theme">folder</icon>
         <statustip>Plugins related to robot control.</statustip>
       </group>
-      <label>XYZ Publisher</label>
+      <label>ROS Jogger</label>
       <icon type="theme">input-mouse</icon>
       <statustip>A plugin to publish XYZ values.</statustip>
     </qtgui>

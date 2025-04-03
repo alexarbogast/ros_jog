@@ -1,4 +1,4 @@
-#include "ros_jogger/ros_jogger.h"
+#include "ros_jog/ros_jog.h"
 #include <pluginlib/class_list_macros.h>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -10,9 +10,9 @@
 #include <cmath>
 #include <Eigen/Geometry>
 
-namespace ros_jogger {
+namespace ros_jog {
 
-RosJogger::RosJogger()
+RosJog::RosJog()
   : rqt_gui_cpp::Plugin()
   , widget_(nullptr)
   , step_size_(0.1)  // Default step size
@@ -20,24 +20,24 @@ RosJogger::RosJogger()
   , current_y_(0.0)
   , current_z_(0.0)
   , is_first_movement_(true)
-  , controller_name_("")
-  , joint_controller_name_("")
+  , controller_name_("pose_controller")
+  , joint_controller_name_("joint_position_controller")
   , controller_client_(nullptr)
   , joint_controller_client_(nullptr)
   , controller_manager_client_(nullptr)
 {
-  setObjectName("RosJogger");
+  setObjectName("RosJog");
 
-  ros::NodeHandle private_nh("~");  // "~" means private namespace
-  if (!private_nh.getParam("controller", controller_name_)) {
-      ROS_ERROR("Failed to get 'controller' parameter");
-      return;
-  }
+  // ros::NodeHandle private_nh("~");  // "~" means private namespace
+  // if (!private_nh.getParam("pose_controller", controller_name_)) {
+  //     ROS_ERROR("Failed to get 'controller' parameter");
+  //     return;
+  // }
 
-  if (!private_nh.getParam("joint_controller", joint_controller_name_)) {
-      ROS_ERROR("Failed to get 'joint_controller' parameter");
-      return;
-  }
+  // if (!private_nh.getParam("joint_controller", joint_controller_name_)) {
+  //     ROS_ERROR("Failed to get 'joint_controller' parameter");
+  //     return;
+  // }
 
   // Initialize controller clients
   controller_client_ = new ControllerClient(controller_name_);
@@ -50,7 +50,7 @@ RosJogger::RosJogger()
   }
 }
 
-RosJogger::~RosJogger()
+RosJog::~RosJog()
 {
   // Clean up controller clients
   delete controller_client_;
@@ -58,7 +58,7 @@ RosJogger::~RosJogger()
   delete controller_manager_client_;
 }
 
-void RosJogger::styleButton(QPushButton* button, const QString& style) {
+void RosJog::styleButton(QPushButton* button, const QString& style) {
   button->setMinimumSize(40, 40);
   button->setStyleSheet(
     "QPushButton {" + style +
@@ -72,7 +72,7 @@ void RosJogger::styleButton(QPushButton* button, const QString& style) {
   );
 }
 
-void RosJogger::setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn,
+void RosJog::setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn,
                                const QString& plusText, const QString& minusText,
                                QWidget* container) {
   QVBoxLayout* layout = new QVBoxLayout(container);
@@ -89,19 +89,19 @@ void RosJogger::setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn,
   layout->addWidget(minusBtn);
 }
 
-double RosJogger::sliderToStepSize(int sliderValue) {
+double RosJog::sliderToStepSize(int sliderValue) {
   // Convert slider value (0-1000) to step size (0.1mm - 100mm) logarithmically
   double t = static_cast<double>(sliderValue) / SLIDER_RESOLUTION;
   return MIN_STEP_SIZE * std::pow(MAX_STEP_SIZE/MIN_STEP_SIZE, t);
 }
 
-int RosJogger::stepSizeToSlider(double stepSize) {
+int RosJog::stepSizeToSlider(double stepSize) {
   // Convert step size to slider value (inverse of sliderToStepSize)
   double t = std::log(stepSize/MIN_STEP_SIZE) / std::log(MAX_STEP_SIZE/MIN_STEP_SIZE);
   return static_cast<int>(t * SLIDER_RESOLUTION);
 }
 
-QString RosJogger::formatStepSize(double stepSize) {
+QString RosJog::formatStepSize(double stepSize) {
   // Format step size in appropriate units (mm or cm)
   if (stepSize < 0.001) {
     return QString("%1 mm").arg(stepSize * 1000, 0, 'f', 2);
@@ -112,7 +112,7 @@ QString RosJogger::formatStepSize(double stepSize) {
   }
 }
 
-QWidget* RosJogger::createStepSizeControl() {
+QWidget* RosJog::createStepSizeControl() {
   QFrame* frame = new QFrame();
   frame->setFrameStyle(QFrame::Panel | QFrame::Sunken);
   
@@ -168,16 +168,16 @@ QWidget* RosJogger::createStepSizeControl() {
   layout->addLayout(button_layout);
   
   // Connect signals
-  connect(step_slider_, &QSlider::valueChanged, this, &RosJogger::onStepSliderChanged);
-  connect(mm01_step_btn_, &QPushButton::clicked, this, &RosJogger::on01mmStepClicked);
-  connect(mm1_step_btn_, &QPushButton::clicked, this, &RosJogger::on1mmStepClicked);
-  connect(cm1_step_btn_, &QPushButton::clicked, this, &RosJogger::on1cmStepClicked);
-  connect(cm10_step_btn_, &QPushButton::clicked, this, &RosJogger::on10cmStepClicked);
+  connect(step_slider_, &QSlider::valueChanged, this, &RosJog::onStepSliderChanged);
+  connect(mm01_step_btn_, &QPushButton::clicked, this, &RosJog::on01mmStepClicked);
+  connect(mm1_step_btn_, &QPushButton::clicked, this, &RosJog::on1mmStepClicked);
+  connect(cm1_step_btn_, &QPushButton::clicked, this, &RosJog::on1cmStepClicked);
+  connect(cm10_step_btn_, &QPushButton::clicked, this, &RosJog::on10cmStepClicked);
   
   return frame;
 }
 
-void RosJogger::initPlugin(qt_gui_cpp::PluginContext& context)
+void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
 {
   widget_ = new QWidget();
   widget_->setWindowTitle("Move Tool");
@@ -272,7 +272,7 @@ void RosJogger::initPlugin(qt_gui_cpp::PluginContext& context)
   context.addWidget(widget_);
 }
 
-void RosJogger::handleKeyPress(int key) {
+void RosJog::handleKeyPress(int key) {
   bool needs_timer_start = false;
   
   switch (key) {
@@ -298,7 +298,7 @@ void RosJogger::handleKeyPress(int key) {
   
 }
 
-void RosJogger::handleKeyRelease(int key) {
+void RosJog::handleKeyRelease(int key) {
   switch (key) {
     case Qt::Key_Right:
       keys_pressed_[0] = false;
@@ -321,7 +321,7 @@ void RosJogger::handleKeyRelease(int key) {
   }
 }
 
-bool RosJogger::eventFilter(QObject* obj, QEvent* event)
+bool RosJog::eventFilter(QObject* obj, QEvent* event)
 {
   if (event->type() == QEvent::KeyPress) {
     QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
@@ -338,22 +338,22 @@ bool RosJogger::eventFilter(QObject* obj, QEvent* event)
   return QObject::eventFilter(obj, event);
 }
 
-void RosJogger::shutdownPlugin()
+void RosJog::shutdownPlugin()
 {
   controller_manager_client_->switchController({joint_controller_name_}, {controller_name_});
 }
 
-void RosJogger::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cpp::Settings& instance_settings) const
+void RosJog::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cpp::Settings& instance_settings) const
 {
   // No settings to save
 }
 
-void RosJogger::restoreSettings(const qt_gui_cpp::Settings& plugin_settings, const qt_gui_cpp::Settings& instance_settings)
+void RosJog::restoreSettings(const qt_gui_cpp::Settings& plugin_settings, const qt_gui_cpp::Settings& instance_settings)
 {
   // No settings to restore
 }
 
-bool RosJogger::getPose()
+bool RosJog::getPose()
 {
   if (!controller_client_->getPose(current_pose_))
   {
@@ -363,7 +363,7 @@ bool RosJogger::getPose()
   return true;
 }
 
-void RosJogger::handleButtonClick(double x, double y, double z)
+void RosJog::handleButtonClick(double x, double y, double z)
 {
   // Get current pose if this is the first movement
   if (is_first_movement_)
@@ -401,33 +401,33 @@ void RosJogger::handleButtonClick(double x, double y, double z)
 }
 
 // Step size control slots
-void RosJogger::onStepSliderChanged(int value) {
+void RosJog::onStepSliderChanged(int value) {
   step_size_ = sliderToStepSize(value);
   step_size_label_->setText(formatStepSize(step_size_));
 }
 
-void RosJogger::setStepSize(double value) {
+void RosJog::setStepSize(double value) {
   step_slider_->setValue(stepSizeToSlider(value));
 }
 
-void RosJogger::on01mmStepClicked() {
+void RosJog::on01mmStepClicked() {
   setStepSize(0.0001);  // 0.1 mm
 }
 
-void RosJogger::on1mmStepClicked() {
+void RosJog::on1mmStepClicked() {
   setStepSize(0.001);   // 1 mm
 }
 
-void RosJogger::on1cmStepClicked() {
+void RosJog::on1cmStepClicked() {
   setStepSize(0.01);    // 1 cm
 }
 
-void RosJogger::on10cmStepClicked() {
+void RosJog::on10cmStepClicked() {
   setStepSize(0.1);     // 10 cm
 }
 
 // Motion planning functions implementation
-void RosJogger::movel(const Eigen::Vector3d& target_position, 
+void RosJog::movel(const Eigen::Vector3d& target_position, 
                      const Eigen::Quaterniond& target_orientation,
                      double duration) {
   geometry_msgs::Pose current_pose;
@@ -448,7 +448,7 @@ void RosJogger::movel(const Eigen::Vector3d& target_position,
                    duration);
 }
 
-void RosJogger::executeLinearPath(const Eigen::Vector3d& start_position,
+void RosJog::executeLinearPath(const Eigen::Vector3d& start_position,
                                 const Eigen::Vector3d& end_position,
                                 const Eigen::Quaterniond& start_orientation,
                                 const Eigen::Quaterniond& end_orientation,
@@ -475,7 +475,7 @@ void RosJogger::executeLinearPath(const Eigen::Vector3d& start_position,
   executePath(positions, velocities, orientations);
 }
 
-void RosJogger::executePath(const std::vector<Eigen::Vector3d>& positions,
+void RosJog::executePath(const std::vector<Eigen::Vector3d>& positions,
                           const std::vector<Eigen::Vector3d>& velocities,
                           const std::vector<Eigen::Quaterniond>& orientations) {
   ros::Rate rate(hz_);
@@ -498,11 +498,11 @@ void RosJogger::executePath(const std::vector<Eigen::Vector3d>& positions,
 }
 
 // Helper functions implementation
-Eigen::Quaterniond RosJogger::quaternionMsgToEigen(const geometry_msgs::Quaternion& msg) {
+Eigen::Quaterniond RosJog::quaternionMsgToEigen(const geometry_msgs::Quaternion& msg) {
   return Eigen::Quaterniond(msg.w, msg.x, msg.y, msg.z);
 }
 
-geometry_msgs::Quaternion RosJogger::quaternionEigenToMsg(const Eigen::Quaterniond& q) {
+geometry_msgs::Quaternion RosJog::quaternionEigenToMsg(const Eigen::Quaterniond& q) {
   geometry_msgs::Quaternion msg;
   msg.x = q.x();
   msg.y = q.y();
@@ -513,7 +513,7 @@ geometry_msgs::Quaternion RosJogger::quaternionEigenToMsg(const Eigen::Quaternio
 
 std::pair<std::function<Eigen::Vector3d(double)>, 
           std::function<Eigen::Vector3d(double)>> 
-RosJogger::linearTrajectory(const Eigen::Vector3d& start, 
+RosJog::linearTrajectory(const Eigen::Vector3d& start, 
                            const Eigen::Vector3d& end, 
                            double duration) {
   Eigen::Vector3d delta = end - start;
@@ -532,7 +532,7 @@ RosJogger::linearTrajectory(const Eigen::Vector3d& start,
 
 std::pair<std::function<Eigen::Quaterniond(double)>, 
           std::function<Eigen::Vector3d(double)>> 
-RosJogger::slerpTrajectory(const Eigen::Quaterniond& start, 
+RosJog::slerpTrajectory(const Eigen::Quaterniond& start, 
                           const Eigen::Quaterniond& end, 
                           double duration) {
   auto orientation_func = [start, end, duration](double t) {
@@ -548,6 +548,6 @@ RosJogger::slerpTrajectory(const Eigen::Quaterniond& start,
   return {orientation_func, velocity_func};
 }
 
-} // namespace ros_jogger
+} // namespace ros_jog
 
-PLUGINLIB_EXPORT_CLASS(ros_jogger::RosJogger, rqt_gui_cpp::Plugin) 
+PLUGINLIB_EXPORT_CLASS(ros_jog::RosJog, rqt_gui_cpp::Plugin) 

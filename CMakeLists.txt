@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   trajectory_msgs
   taskspace_control_msgs
   eigen_conversions
+  actionlib
 )
 
 find_package(Eigen3 REQUIRED)
@@ -37,6 +38,7 @@ catkin_package(
     trajectory_msgs 
     taskspace_control_msgs 
     eigen_conversions
+    actionlib
 )
 
 include_directories(
@@ -45,27 +47,25 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
 )
 
-set(ros_jogger_SRCS
-  src/ros_jogger.cpp
+set(ros_jog_SRCS
+  src/ros_jog.cpp
   src/controller_manager_client.cpp
   src/controller_clients.cpp
 )
 
-set(ros_jogger_HDRS
-  include/ros_jog/ros_jogger.h
-  include/ros_jog/controller_clients.h
-  include/ros_jog/controller_manager_client.h
+set(ros_jog_HDRS
+  include/ros_jog/ros_jog.h
 )
 
 if("${qt_gui_cpp_USE_QT_MAJOR_VERSION} " STREQUAL "5 ")
-  qt5_wrap_cpp(ros_jogger_MOCS ${ros_jogger_HDRS})
+  qt5_wrap_cpp(ros_jog_MOCS ${ros_jog_HDRS})
 else()
-  qt4_wrap_cpp(ros_jogger_MOCS ${ros_jogger_HDRS})
+  qt4_wrap_cpp(ros_jog_MOCS ${ros_jog_HDRS})
 endif()
 
 add_library(${PROJECT_NAME}
-  ${ros_jogger_SRCS}
-  ${ros_jogger_MOCS}
+  ${ros_jog_SRCS}
+  ${ros_jog_MOCS}
 )
 
 target_link_libraries(${PROJECT_NAME}

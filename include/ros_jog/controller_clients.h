@@ -1,4 +1,4 @@
-// Copyright 2025 Rowan Ramamaurthy
+// Copyright 2025 Alex Arbogast Rowan Ramamaurthy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-namespace ros_jogger {
+namespace ros_jog {
 
 class ControllerClient {
 public:
@@ -53,6 +53,6 @@ private:
   actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> joint_traj_client_;
 };
 
-} // namespace ros_jogger
+} // namespace ros_jog
 
 #endif // CONTROLLER_CLIENTS_H 

@@ -1,7 +1,7 @@
-#include "ros_jogger/controller_clients.h"
+#include "ros_jog/controller_clients.h"
 #include <ros/ros.h>
 
-namespace ros_jogger {
+namespace ros_jog {
 
 ControllerClient::ControllerClient(const std::string& name) : name_(name) {
   ros::NodeHandle nh;
@@ -48,13 +48,6 @@ JointControllerClient::JointControllerClient(const std::string& name)
   }
   n_joints_ = joint_names_.size();
   
-  ROS_INFO("Waiting for follow_joint_trajectory action");
-  if (!joint_traj_client_.waitForServer(ros::Duration(5.0))) {
-    ROS_ERROR("Failed to connect to follow_joint_trajectory action server for controller %s", 
-              name_.c_str());
-    return;
-  }
-  
   ROS_INFO("Connected to controller: %s", name_.c_str());
 }
 
@@ -99,4 +92,4 @@ bool JointControllerClient::waitForGoal() {
   return true;
 }
 
-} // namespace ros_jogger 
+} // namespace ros_jog 

@@ -1,8 +1,8 @@
-#include "ros_jogger/controller_manager_client.h"
+#include "ros_jog/controller_manager_client.h"
 #include <controller_manager_msgs/SwitchController.h>
 #include <ros/ros.h>
 
-namespace ros_jogger {
+namespace ros_jog {
 
 ControllerManagerClient::ControllerManagerClient() {
   ros::NodeHandle nh;
@@ -31,8 +31,10 @@ bool ControllerManagerClient::switchController(const std::vector<std::string>& s
     ROS_ERROR("Controller switch failed");
     return false;
   }
+
+  ROS_INFO("Successfully switched controllers");
   
   return true;
 }
 
-} // namespace ros_jogger 
+} // namespace ros_jog

@@ -1,4 +1,4 @@
-// Copyright 2025 Rowan Ramamurthy
+// Copyright 2025 Alex Arbogast Rowan Ramamurthy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include <ros/ros.h>
 #include <controller_manager_msgs/SwitchController.h>
 
-namespace ros_jogger {
+namespace ros_jog {
 
 class ControllerManagerClient {
 public:
@@ -32,6 +32,6 @@ private:
   ros::ServiceClient switch_controller_client_;
 };
 
-} // namespace ros_jogger
+} // namespace ros_jog
 
 #endif // CONTROLLER_MANAGER_CLIENT_H 
