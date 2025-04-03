@@ -1,4 +1,4 @@
-// Copyright 2025 Alex Arbogast
+// Copyright 2025 Rowan Ramamurthy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
 
-#include <QMainWindow>
+#ifndef CONTROLLER_MANAGER_CLIENT_H
+#define CONTROLLER_MANAGER_CLIENT_H
 
-#include <ros_jog/cartesian_jog_widget.h>
+#include <ros/ros.h>
+#include <controller_manager_msgs/SwitchController.h>
 
-namespace ros_jog
-{
-class JoggingWindow : public QMainWindow
-{
-  Q_OBJECT
+namespace ros_jogger {
+
+class ControllerManagerClient {
 public:
-  explicit JoggingWindow(QWidget *parent = 0);
+  ControllerManagerClient();
+  
+  bool switchController(const std::vector<std::string>& start_controllers,
+                        const std::vector<std::string>& stop_controllers);
+
 private:
-  CartesianJogger* cartesian_jogger_;
+  ros::ServiceClient switch_controller_client_;
 };
 
-}  // namespace ros_jog
+} // namespace ros_jogger
+
+#endif // CONTROLLER_MANAGER_CLIENT_H 
