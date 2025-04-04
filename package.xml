@@ -3,38 +3,28 @@
   <name>ros_jog</name>
   <version>0.1.0</version>
   <description>A simple ROS rqt plugin for publishing xyz values</description>
-  <maintainer email="user@todo.todo">user</maintainer>
+  <author>Alex Arbogast</author>
+  <author>Rowan Ramamurthy</author>
+  <maintainer email="arbogastaw@gmail.com">Alex Arbogast</maintainer>
+  <maintainer email="rowrama99@gmail.com">Rowan Ramamurthy</maintainer>
   <license>BSD</license>
 
   <buildtool_depend>catkin</buildtool_depend>
-  
-  <build_depend>roscpp</build_depend>
-  <build_depend>rqt_gui</build_depend>
-  <build_depend>rqt_gui_cpp</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>geometry_msgs</build_depend>
-  <build_depend>controller_manager_msgs</build_depend>
-  <build_depend>control_msgs</build_depend>
-  <build_depend>trajectory_msgs</build_depend>
-  <build_depend>taskspace_control_msgs</build_depend>
-  <build_depend>eigen_conversions</build_depend>
-  <build_depend>libeigen3-dev</build_depend>
-  <build_depend>actionlib</build_depend>
-  
-  <exec_depend>roscpp</exec_depend>
-  <exec_depend>rqt_gui</exec_depend>
-  <exec_depend>rqt_gui_cpp</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>controller_manager_msgs</exec_depend>
-  <exec_depend>control_msgs</exec_depend>
-  <exec_depend>trajectory_msgs</exec_depend>
-  <exec_depend>taskspace_control_msgs</exec_depend>
-  <exec_depend>eigen_conversions</exec_depend>
-  <exec_depend>libeigen3-dev</exec_depend>
-  <exec_depend>actionlib</exec_depend>
+
+  <depend>roscpp</depend>
+  <depend>rqt_gui</depend>
+  <depend>rqt_gui_cpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>controller_manager_msgs</depend>
+  <depend>control_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>taskspace_control_msgs</depend>
+  <depend>eigen_conversions</depend>
+  <depend>libeigen3-dev</depend>
+  <depend>actionlib</depend>
 
   <export>
     <rqt_gui plugin="${prefix}/plugin.xml"/>
   </export>
-</package> 
+</package>
