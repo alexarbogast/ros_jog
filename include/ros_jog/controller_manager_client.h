@@ -19,12 +19,14 @@
 #include <ros/ros.h>
 #include <controller_manager_msgs/SwitchController.h>
 
-namespace ros_jog {
+namespace ros_jog
+{
 
-class ControllerManagerClient {
+class ControllerManagerClient
+{
 public:
   ControllerManagerClient();
-  
+
   bool switchController(const std::vector<std::string>& start_controllers,
                         const std::vector<std::string>& stop_controllers);
 
@@ -32,6 +34,6 @@ private:
   ros::ServiceClient switch_controller_client_;
 };
 
-} // namespace ros_jog
+}  // namespace ros_jog
 
-#endif // CONTROLLER_MANAGER_CLIENT_H 
+#endif  // CONTROLLER_MANAGER_CLIENT_H

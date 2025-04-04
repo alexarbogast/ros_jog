@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CONTROLLER_CLIENTS_H 
-#define CONTROLLER_CLIENTS_H 
+#ifndef CONTROLLER_CLIENTS_H
+#define CONTROLLER_CLIENTS_H
 
 #include <ros/ros.h>
 #include <actionlib/client/simple_action_client.h>
@@ -24,13 +24,16 @@
 #include <string>
 #include <vector>
 
-namespace ros_jog {
+namespace ros_jog
+{
 
-class ControllerClient {
+class ControllerClient
+{
 public:
   ControllerClient(const std::string& name);
-  
-  void publishSetpoint(const taskspace_control_msgs::PoseTwistSetpoint& setpoint);
+
+  void
+  publishSetpoint(const taskspace_control_msgs::PoseTwistSetpoint& setpoint);
   bool getPose(geometry_msgs::Pose& pose);
 
 private:
@@ -39,20 +42,23 @@ private:
   ros::ServiceClient pose_client_;
 };
 
-class JointControllerClient {
+class JointControllerClient
+{
 public:
   JointControllerClient(const std::string& name);
-  
-  bool moveJoint(const std::vector<double>& joint_goal, double duration, bool blocking = true);
+
+  bool moveJoint(const std::vector<double>& joint_goal, double duration,
+                 bool blocking = true);
   bool waitForGoal();
 
 private:
   std::string name_;
   std::vector<std::string> joint_names_;
   int n_joints_;
-  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> joint_traj_client_;
+  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>
+      joint_traj_client_;
 };
 
-} // namespace ros_jog
+}  // namespace ros_jog
 
-#endif // CONTROLLER_CLIENTS_H 
+#endif  // CONTROLLER_CLIENTS_H

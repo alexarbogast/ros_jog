@@ -27,16 +27,16 @@ endif()
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS 
-    roscpp 
-    rqt_gui 
-    rqt_gui_cpp 
-    std_msgs 
-    geometry_msgs 
-    controller_manager_msgs 
-    control_msgs 
-    trajectory_msgs 
-    taskspace_control_msgs 
+  CATKIN_DEPENDS
+    roscpp
+    rqt_gui
+    rqt_gui_cpp
+    std_msgs
+    geometry_msgs
+    controller_manager_msgs
+    control_msgs
+    trajectory_msgs
+    taskspace_control_msgs
     eigen_conversions
     actionlib
 )
@@ -88,4 +88,4 @@ install(TARGETS ${PROJECT_NAME}
 
 install(FILES plugin.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-) 
+)
