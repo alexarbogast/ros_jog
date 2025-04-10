@@ -248,21 +248,21 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   main_layout->addLayout(bottom_row);
 
   // Connect signals and slots using lambda functions
-  connect(x_plus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(1.0, 0.0, 0.0); });
-  connect(x_minus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(-1.0, 0.0, 0.0); });
-  connect(y_plus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(0.0, 1.0, 0.0); });
-  connect(y_minus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(0.0, -1.0, 0.0); });
-  connect(z_plus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(0.0, 0.0, 1.0); });
-  connect(z_minus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(0.0, 0.0, -1.0); });
+  connect(x_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(1.0, 0.0, 0.0); });
+  connect(x_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(-1.0, 0.0, 0.0); });
+  connect(y_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 1.0, 0.0); });
+  connect(y_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, -1.0, 0.0); });
+  connect(z_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 0.0, 1.0); });
+  connect(z_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 0.0, -1.0); });
   
-  connect(a_plus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(1.0, 0.0, 0.0); });
-  connect(a_minus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(-1.0, 0.0, 0.0); });
-  connect(b_plus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(0.0, 1.0, 0.0); });
-  connect(b_minus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(0.0, -1.0, 0.0); });
-  connect(c_plus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(0.0, 0.0, 1.0); });
-  connect(c_minus_btn_, &QPushButton::clicked, [this]() { handleButtonClick(0.0, 0.0, -1.0); });
+  connect(a_plus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(1.0, 0.0, 0.0); });
+  connect(a_minus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(-1.0, 0.0, 0.0); });
+  connect(b_plus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(0.0, 1.0, 0.0); });
+  connect(b_minus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(0.0, -1.0, 0.0); });
+  connect(c_plus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(0.0, 0.0, 1.0); });
+  connect(c_minus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(0.0, 0.0, -1.0); });
 
-  // Initialize ROS publisher
+  // Swap to the taskspace pose controller
   controller_manager_client_->switchController({controller_name_}, {joint_controller_name_});
 
   // Install event filter for keyboard events
@@ -272,63 +272,32 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   context.addWidget(widget_);
 }
 
-void RosJog::handleKeyPress(int key) {
-  bool needs_timer_start = false;
-  
-  switch (key) {
-    case Qt::Key_Right:
-      if (!keys_pressed_[0]) { keys_pressed_[0] = true; needs_timer_start = true; }
-      break;
-    case Qt::Key_Left:
-      if (!keys_pressed_[1]) { keys_pressed_[1] = true; needs_timer_start = true; }
-      break;
-    case Qt::Key_Up:
-      if (!keys_pressed_[2]) { keys_pressed_[2] = true; needs_timer_start = true; }
-      break;
-    case Qt::Key_Down:
-      if (!keys_pressed_[3]) { keys_pressed_[3] = true; needs_timer_start = true; }
-      break;
-    case Qt::Key_PageUp:
-      if (!keys_pressed_[4]) { keys_pressed_[4] = true; needs_timer_start = true; }
-      break;
-    case Qt::Key_PageDown:
-      if (!keys_pressed_[5]) { keys_pressed_[5] = true; needs_timer_start = true; }
-      break;
-  }
-  
-}
-
 void RosJog::handleKeyRelease(int key) {
   switch (key) {
     case Qt::Key_Right:
-      keys_pressed_[0] = false;
+      handleMovelClick(1.0, 0.0, 0.0);
       break;
     case Qt::Key_Left:
-      keys_pressed_[1] = false;
+      handleMovelClick(-1.0, 0.0, 0.0);
       break;
     case Qt::Key_Up:
-      keys_pressed_[2] = false;
+      handleMovelClick(0.0, 1.0, 0.0);
       break;
     case Qt::Key_Down:
-      keys_pressed_[3] = false;
+      handleMovelClick(0.0, -1.0, 0.0);
       break;
     case Qt::Key_PageUp:
-      keys_pressed_[4] = false;
+      handleMovelClick(0.0, 0.0, 1.0);
       break;
     case Qt::Key_PageDown:
-      keys_pressed_[5] = false;
+      handleMovelClick(0.0, 0.0, -1.0);
       break;
   }
 }
 
 bool RosJog::eventFilter(QObject* obj, QEvent* event)
 {
-  if (event->type() == QEvent::KeyPress) {
-    QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
-    handleKeyPress(keyEvent->key());
-    return true;
-  }
-  else if (event->type() == QEvent::KeyRelease) {
+  if (event->type() == QEvent::KeyRelease) {
     QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
     if (!keyEvent->isAutoRepeat()) {  // Ignore auto-repeat key releases
       handleKeyRelease(keyEvent->key());
@@ -363,7 +332,7 @@ bool RosJog::getPose()
   return true;
 }
 
-void RosJog::handleButtonClick(double x, double y, double z)
+void RosJog::handleMovelClick(double x, double y, double z)
 {
   // Get current pose if this is the first movement
   if (is_first_movement_)
@@ -393,11 +362,51 @@ void RosJog::handleButtonClick(double x, double y, double z)
   Eigen::Quaterniond target_orientation = quaternionMsgToEigen(target_pose_.orientation);
 
   // Move to the target position with current orientation
-  movel(target_position, target_orientation, 0.0);  // 1 second duration
+  movel(target_position, target_orientation, 0.5);  // 1 second duration
 
   // Log the movement
   ROS_INFO_STREAM("Moving to position: (" << target_position.x() << ", " 
                   << target_position.y() << ", " << target_position.z() << ")");
+}
+
+
+void RosJog::handleRotationClick(double roll, double pitch, double yaw)
+{
+  // Get current pose if this is the first movement
+  if (is_first_movement_)
+  {
+    if (!getPose())
+    {
+      ROS_ERROR("Failed to get initial pose");
+      return;
+    }
+    target_pose_ = current_pose_;
+    is_first_movement_ = false;
+  }
+  return;
+  // Convert current orientation to Eigen quaternion
+  Eigen::Quaterniond current_orientation = quaternionMsgToEigen(target_pose_.orientation);
+
+  double step_size = 0.17;  // Adjust step size for rotation
+
+  // Create incremental rotations for roll, pitch, and yaw
+  Eigen::AngleAxisd roll_rotation(roll * step_size, Eigen::Vector3d::UnitX());
+  Eigen::AngleAxisd pitch_rotation(pitch * step_size, Eigen::Vector3d::UnitY());
+  Eigen::AngleAxisd yaw_rotation(yaw * step_size, Eigen::Vector3d::UnitZ());
+
+  // Apply the rotations to the current orientation
+  Eigen::Quaterniond new_orientation = yaw_rotation * pitch_rotation * roll_rotation * current_orientation;
+
+  // Update the target pose orientation
+  target_pose_.orientation = quaternionEigenToMsg(new_orientation);
+
+  // Move to the target position with the updated orientation
+  movel(Eigen::Vector3d(target_pose_.position.x, target_pose_.position.y, target_pose_.position.z),
+        new_orientation, 0.5);  // 1 second duration
+
+  // Log the movement
+  ROS_INFO_STREAM("Adjusting orientation: roll=" << roll * step_size_ << ", pitch=" << pitch * step_size_
+                  << ", yaw=" << yaw * step_size_);
 }
 
 // Step size control slots
