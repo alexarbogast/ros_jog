@@ -16,11 +16,10 @@
 #define CONTROLLER_CLIENTS_H
 
 #include <ros/ros.h>
-#include <actionlib/client/simple_action_client.h>
-#include <control_msgs/FollowJointTrajectoryAction.h>
-#include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <taskspace_control_msgs/PoseTwistSetpoint.h>
 #include <taskspace_control_msgs/QueryPose.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <sensor_msgs/JointState.h>
 #include <string>
 #include <vector>
 
@@ -46,17 +45,17 @@ class JointControllerClient
 {
 public:
   JointControllerClient(const std::string& name);
-
-  bool moveJoint(const std::vector<double>& joint_goal, double duration,
-                 bool blocking = true);
-  bool waitForGoal();
+  
+  bool moveJoint(const std::vector<double>& joint_goal);
+  // void JointControllerClient::jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+  // std::vector<double> JointControllerClient::getCurrentJointPositions()
 
 private:
   std::string name_;
   std::vector<std::string> joint_names_;
   int n_joints_;
-  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>
-      joint_traj_client_;
+  ros::Publisher joint_pub_;
+  // ros::Subscriber joint_state_sub_;
 };
 
 }  // namespace ros_jog

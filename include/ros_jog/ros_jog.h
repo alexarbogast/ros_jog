@@ -92,16 +92,14 @@ private:
                   const Eigen::Quaterniond& end, double duration);
 
   bool getPose();
-  void handleButtonClick(double x, double y, double z);
-  void setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn,
-                        const QString& plusText, const QString& minusText,
-                        QWidget* container);
+  void handleMovelClick(double x, double y, double z);
+  void handleRotationClick(double x, double y, double z);
+  void setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn, 
+                       const QString& plusText, const QString& minusText,
+                       QWidget* container);
   void styleButton(QPushButton* button, const QString& style);
   QWidget* createStepSizeControl();
-  void handleKeyPress(int key);
   void handleKeyRelease(int key);
-  void startContinuousMove();
-  void stopContinuousMove();
   double sliderToStepSize(int sliderValue);
   int stepSizeToSlider(double stepSize);
   QString formatStepSize(double stepSize);
@@ -146,7 +144,7 @@ private:
   ControllerManagerClient* controller_manager_client_;
 
   // Motion planning parameters
-  double hz_;  // Control frequency
+  double hz_ = 1000;  // Control frequency
   geometry_msgs::Pose current_pose_;
   geometry_msgs::Pose target_pose_;  // Target pose for incremental movements
   bool is_first_movement_;  // Flag to track if this is the first movement

@@ -46,9 +46,9 @@ bool ControllerClient::getPose(geometry_msgs::Pose& pose)
   return true;
 }
 
-JointControllerClient::JointControllerClient(const std::string& name)
-  : name_(name), joint_traj_client_(name + "/follow_joint_trajectory", true)
-{
+JointControllerClient::JointControllerClient(const std::string& name) 
+  : name_(name) {
+  
   ros::NodeHandle nh;
 
   // Get joint names from parameter server
@@ -60,55 +60,50 @@ JointControllerClient::JointControllerClient(const std::string& name)
   }
   n_joints_ = joint_names_.size();
 
+  // Create publisher
+  joint_pub_ = nh.advertise<std_msgs::Float64MultiArray>(
+    name_ + "/command", 1, true);
+
+  //Create joint state subscriber
+  // ros::Subscriber joint_state_sub = nh.subscribe(
+  //   "/joint_states", 1, &JointControllerClient::jointStateCallback, this);
+  
   ROS_INFO("Connected to controller: %s", name_.c_str());
 }
 
-bool JointControllerClient::moveJoint(const std::vector<double>& joint_goal,
-                                      double duration, bool blocking)
-{
-  if (joint_goal.size() != static_cast<size_t>(n_joints_))
-  {
-    ROS_ERROR("Joint goal size (%zu) does not match number of joints (%d)",
+bool JointControllerClient::moveJoint(const std::vector<double>& joint_goal) {
+  if (joint_goal.size() != static_cast<size_t>(n_joints_)) {
+    ROS_ERROR("Joint goal size (%zu) does not match number of joints (%d)", 
               joint_goal.size(), n_joints_);
     return false;
   }
 
-  control_msgs::FollowJointTrajectoryGoal goal;
-  goal.trajectory.joint_names = joint_names_;
+  // Create and populate the Float64MultiArray message
+  std_msgs::Float64MultiArray command_msg;
+  command_msg.data = joint_goal;
 
-  trajectory_msgs::JointTrajectoryPoint point;
-  point.positions = joint_goal;
-  point.velocities.resize(n_joints_, 0.0);
-  point.accelerations.resize(n_joints_, 0.0);
-  point.time_from_start = ros::Duration(duration);
-  goal.trajectory.points.push_back(point);
-
-  joint_traj_client_.sendGoal(goal);
-
-  if (blocking)
-  {
-    return waitForGoal();
-  }
-  return true;
-}
-
-bool JointControllerClient::waitForGoal()
-{
-  if (!joint_traj_client_.waitForResult(ros::Duration(30.0)))
-  {
-    ROS_ERROR("Timeout waiting for joint trajectory result");
-    return false;
-  }
-
-  if (joint_traj_client_.getState() !=
-      actionlib::SimpleClientGoalState::SUCCEEDED)
-  {
-    ROS_ERROR("Joint trajectory execution failed: %s",
-              joint_traj_client_.getState().toString().c_str());
-    return false;
-  }
+  // Publish the joint positions
+  joint_pub_.publish(command_msg);
 
   return true;
 }
 
-}  // namespace ros_jog
+// void JointControllerClient::jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg) {
+//   // Update the local joint positions
+//   std::lock_guard<std::mutex> lock(joint_state_mutex_);
+//   current_joint_positions_.clear();
+//   for (const auto& name : joint_names_) {
+//     auto it = std::find(msg->name.begin(), msg->name.end(), name);
+//     if (it != msg->name.end()) {
+//       size_t index = std::distance(msg->name.begin(), it);
+//       current_joint_positions_.push_back(msg->position[index]);
+//     }
+//   }
+// }
+
+// std::vector<double> JointControllerClient::getCurrentJointPositions() const {
+//   std::lock_guard<std::mutex> lock(joint_state_mutex_);
+//   return current_joint_positions_;
+// }
+
+} // namespace ros_jog 
