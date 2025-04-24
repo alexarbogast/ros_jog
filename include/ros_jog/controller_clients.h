@@ -35,14 +35,19 @@ public:
   bool getPose(geometry_msgs::Pose& pose);
   void updateDevice(const std::string& device_name);
   std::vector<std::string> getPotentialConrollers();
+  void jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+  std::vector<double> getJointPositions();
 
 private:
   std::vector<std::string> GetPoseControllers();
 
   std::vector<std::string> potential_controllers_;
   std::string name_;
+  std::string ns_;
+  std::vector<double> joint_positions_;
   ros::Publisher setpoint_pub_;
   ros::ServiceClient pose_client_;
+  ros::Subscriber joint_state_sub_;
 };
 
 }  // namespace ros_jog

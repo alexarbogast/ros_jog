@@ -106,6 +106,12 @@ void ControllerClient::updateDevice(const std::string& pose_controller_name)
   // Update the controller name
   name_ = pose_controller_name;
 
+  // Extract the text before the previous backslash
+  size_t last_slash_pos = name_.find_last_of('/');
+  ns_ = (last_slash_pos != std::string::npos) 
+                                      ? name_.substr(0, last_slash_pos) 
+                                      : "";
+
   // Initialize the ROS node handle
   ros::NodeHandle nh(name_);
 
@@ -123,8 +129,28 @@ void ControllerClient::updateDevice(const std::string& pose_controller_name)
   pose_client_ =
       nh.serviceClient<taskspace_control_msgs::QueryPose>(name_ + "/query_"
                                                                   "pose");
+  joint_state_sub_ =
+      nh.subscribe<sensor_msgs::JointState>(ns_ + "/joint_states", 1,
+                                            &ControllerClient::jointStateCallback,
+                                            this);
+
 
   ROS_INFO("Connected to controller: %s", name_.c_str());
 }
+
+//--------------------------------------------------------------
+
+void ControllerClient::jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg)
+{
+    // Save the joint positions in an array of floats
+    joint_positions_ = {msg->position.begin(), msg->position.end()};
+}
+
+//--------------------------------------------------------------
+std::vector<double> ControllerClient::getJointPositions()
+{
+    return joint_positions_;
+}
+//--------------------------------------------------------------
 
 } // namespace ros_jog

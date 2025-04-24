@@ -9,6 +9,8 @@
 #include <QSlider>
 #include <cmath>
 #include <Eigen/Geometry>
+#include <fstream>
+#include <iomanip>
 
 namespace ros_jog
 {
@@ -227,6 +229,11 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
 
   main_layout->addLayout(bottom_row);
 
+  // Add Save Joint States button at the bottom
+  save_joints_btn_ = new QPushButton("Save Joint States");
+  styleButton(save_joints_btn_, "min-width: 120px;");
+  main_layout->addWidget(save_joints_btn_);
+
   // Connect signals and slots using lambda functions
   connect(x_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(1.0, 0.0, 0.0); });
   connect(x_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(-1.0, 0.0, 0.0); });
@@ -234,6 +241,7 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   connect(y_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, -1.0, 0.0); });
   connect(z_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 0.0, 1.0); });
   connect(z_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 0.0, -1.0); });
+  connect(save_joints_btn_, &QPushButton::clicked, this, &RosJog::handleSaveJointStates);
   
   // Install event filter for keyboard events
   widget_->installEventFilter(this);
@@ -525,6 +533,40 @@ void RosJog::onControllerManagerDropdownChanged(int index) {
     // Perform actions based on the selected controller
     controller_client_.updateDevice(selected_controller.toStdString());
     is_first_movement_ = true; // Reset the first movement flag
+}
+
+void RosJog::handleSaveJointStates() 
+{
+    std::vector<double> joint_positions = controller_client_.getJointPositions();
+    
+// Get home directory path
+    const char* home_dir = getenv("HOME");
+    if (!home_dir) {
+        ROS_ERROR("Could not get home directory path");
+        return;
+    }
+    
+    std::string filepath = std::string(home_dir) + "/workspaces/joint_states.csv";
+    std::ofstream file;
+    file.open(filepath, std::ios::app); // Open in append mode
+    
+    if (!file.is_open()) {
+        ROS_ERROR("Failed to open file for writing: %s", filepath.c_str());
+        return;
+    }
+    
+    // Write joint positions as CSV with 6 decimal places
+    file << std::fixed << std::setprecision(6);
+    for (size_t i = 0; i < joint_positions.size(); ++i) {
+        file << joint_positions[i];
+        if (i < joint_positions.size() - 1) {
+            file << ",";
+        }
+    }
+    file << "\n";
+    file.close();
+    
+    ROS_INFO("Joint states saved to: %s", filepath.c_str());
 }
 
 }  // namespace ros_jog

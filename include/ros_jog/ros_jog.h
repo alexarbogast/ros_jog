@@ -150,6 +150,9 @@ private:
 
   // Add a dropdown to the widget
   QComboBox* controller_manager_dropdown_;
+  QPushButton* save_joints_btn_;  // New button for saving joint states
+
+  void handleSaveJointStates();  // New handler for saving joint states
 };
 
 }  // namespace ros_jog
