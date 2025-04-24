@@ -54,7 +54,6 @@ include_directories(
 
 set(ros_jog_SRCS
   src/ros_jog.cpp
-  src/controller_manager_client.cpp
   src/controller_clients.cpp
 )
 

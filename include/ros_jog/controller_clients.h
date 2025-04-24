@@ -18,7 +18,6 @@
 #include <ros/ros.h>
 #include <taskspace_control_msgs/PoseTwistSetpoint.h>
 #include <taskspace_control_msgs/QueryPose.h>
-#include <std_msgs/Float64MultiArray.h>
 #include <sensor_msgs/JointState.h>
 #include <string>
 #include <vector>
@@ -29,33 +28,21 @@ namespace ros_jog
 class ControllerClient
 {
 public:
-  ControllerClient(const std::string& name);
+  ControllerClient();
 
-  void
-  publishSetpoint(const taskspace_control_msgs::PoseTwistSetpoint& setpoint);
+  
+  void publishSetpoint(const taskspace_control_msgs::PoseTwistSetpoint& setpoint);
   bool getPose(geometry_msgs::Pose& pose);
+  void updateDevice(const std::string& device_name);
+  std::vector<std::string> getPotentialConrollers();
 
 private:
+  std::vector<std::string> GetPoseControllers();
+
+  std::vector<std::string> potential_controllers_;
   std::string name_;
   ros::Publisher setpoint_pub_;
   ros::ServiceClient pose_client_;
-};
-
-class JointControllerClient
-{
-public:
-  JointControllerClient(const std::string& name);
-  
-  bool moveJoint(const std::vector<double>& joint_goal);
-  // void JointControllerClient::jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
-  // std::vector<double> JointControllerClient::getCurrentJointPositions()
-
-private:
-  std::string name_;
-  std::vector<std::string> joint_names_;
-  int n_joints_;
-  ros::Publisher joint_pub_;
-  // ros::Subscriber joint_state_sub_;
 };
 
 }  // namespace ros_jog

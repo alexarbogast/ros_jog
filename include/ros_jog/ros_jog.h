@@ -23,6 +23,7 @@
 #include <QSlider>
 #include <QLabel>
 #include <QTimer>
+#include <QComboBox>
 #include <cmath>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
@@ -33,7 +34,6 @@
 #include <Eigen/Geometry>
 #include <vector>
 #include "ros_jog/controller_clients.h"
-#include "ros_jog/controller_manager_client.h"
 
 using namespace std;
 
@@ -56,7 +56,12 @@ public:
 protected:
   bool eventFilter(QObject* obj, QEvent* event);
 
-private slots:
+private:
+  // dropdown controls
+  void updateCCList(const ros::TimerEvent& event);
+  void populateControllerManagerDropdown(const std::vector<std::string>& controllers);
+  void onControllerManagerDropdownChanged(int index);
+
   // Step size controls
   void onStepSliderChanged(int value);
   void setStepSize(double value);
@@ -65,7 +70,6 @@ private slots:
   void on1cmStepClicked();
   void on10cmStepClicked();
 
-private:
   // Motion planning functions
   void movel(const Eigen::Vector3d& target_position,
              const Eigen::Quaterniond& target_orientation, double duration);
@@ -93,7 +97,7 @@ private:
 
   bool getPose();
   void handleMovelClick(double x, double y, double z);
-  void handleRotationClick(double x, double y, double z);
+  // void handleRotationClick(double x, double y, double z);
   void setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn, 
                        const QString& plusText, const QString& minusText,
                        QWidget* container);
@@ -112,13 +116,6 @@ private:
   QPushButton* y_minus_btn_;
   QPushButton* z_plus_btn_;
   QPushButton* z_minus_btn_;
-  // ABC buttons
-  QPushButton* a_plus_btn_;
-  QPushButton* a_minus_btn_;
-  QPushButton* b_plus_btn_;
-  QPushButton* b_minus_btn_;
-  QPushButton* c_plus_btn_;
-  QPushButton* c_minus_btn_;
 
   // Step size controls
   QSlider* step_slider_;
@@ -135,13 +132,10 @@ private:
   double current_y_;
   double current_z_;
 
-  ros::Publisher point_pub_;
   ros::NodeHandle nh_;
-  std::string controller_name_;
-  std::string joint_controller_name_;
-  ControllerClient* controller_client_;
-  JointControllerClient* joint_controller_client_;
-  ControllerManagerClient* controller_manager_client_;
+  ControllerClient controller_client_;
+  ros::Timer update_cc_list_timer_;
+  std::vector<std::string> current_controllers_;  // List of controller managers
 
   // Motion planning parameters
   double hz_ = 1000;  // Control frequency
@@ -153,6 +147,9 @@ private:
   static constexpr double MIN_STEP_SIZE = 0.0001;  // 0.1mm
   static constexpr double MAX_STEP_SIZE = 0.1;     // 100mm
   static constexpr int SLIDER_RESOLUTION = 1000;   // Number of slider steps
+
+  // Add a dropdown to the widget
+  QComboBox* controller_manager_dropdown_;
 };
 
 }  // namespace ros_jog

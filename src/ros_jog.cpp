@@ -20,44 +20,24 @@ RosJog::RosJog()
   , current_x_(0.0)
   , current_y_(0.0)
   , current_z_(0.0)
+  , nh_(ros::NodeHandle()) // Initialize nh_
   , is_first_movement_(true)
-  , controller_name_("pose_controller")
-  , joint_controller_name_("joint_position_controller")
-  , controller_client_(nullptr)
-  , joint_controller_client_(nullptr)
-  , controller_manager_client_(nullptr)
+  , controller_client_()
+  , current_controllers_()
 {
   setObjectName("RosJog");
 
-  // ros::NodeHandle private_nh("~");  // "~" means private namespace
-  // if (!private_nh.getParam("pose_controller", controller_name_)) {
-  //     ROS_ERROR("Failed to get 'controller' parameter");
-  //     return;
-  // }
+  double update_freq = 10.0;  // Hz
+  double update_interval = 1.0 / update_freq;
 
-  // if (!private_nh.getParam("joint_controller", joint_controller_name_)) {
-  //     ROS_ERROR("Failed to get 'joint_controller' parameter");
-  //     return;
-  // }
+  // Create a timer to periodically update the controller manager list
+  update_cc_list_timer_ = nh_.createTimer(ros::Duration(update_interval),
+                                          &RosJog::updateCCList, this);
 
-  // Initialize controller clients
-  controller_client_ = new ControllerClient(controller_name_);
-  joint_controller_client_ = new JointControllerClient(joint_controller_name_);
-  controller_manager_client_ = new ControllerManagerClient();
-
-  // Initialize key states
-  for (int i = 0; i < 6; ++i)
-  {
-    keys_pressed_[i] = false;
-  }
 }
 
 RosJog::~RosJog()
 {
-  // Clean up controller clients
-  delete controller_client_;
-  delete joint_controller_client_;
-  delete controller_manager_client_;
 }
 
 void RosJog::styleButton(QPushButton* button, const QString& style)
@@ -203,31 +183,16 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   QVBoxLayout* main_layout = new QVBoxLayout(widget_);
   main_layout->setSpacing(10);
 
+  // Add a dropdown to the widget
+  controller_manager_dropdown_ = new QComboBox(widget_);
+  controller_manager_dropdown_->setToolTip("Select Controller Manager");
+  main_layout->addWidget(controller_manager_dropdown_);
+
+  // Connect the dropdown's signal to the slot
+  connect(controller_manager_dropdown_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RosJog::onControllerManagerDropdownChanged);
+
   // Add step size control at the top
   main_layout->addWidget(createStepSizeControl());
-
-  // Create top row with ABC controls
-  QHBoxLayout* top_row = new QHBoxLayout();
-
-  // Create ABC buttons
-  QFrame* a_frame = new QFrame();
-  QFrame* b_frame = new QFrame();
-  QFrame* c_frame = new QFrame();
-
-  a_plus_btn_ = new QPushButton();
-  a_minus_btn_ = new QPushButton();
-  b_plus_btn_ = new QPushButton();
-  b_minus_btn_ = new QPushButton();
-  c_plus_btn_ = new QPushButton();
-  c_minus_btn_ = new QPushButton();
-
-  setupAxisControl(a_plus_btn_, a_minus_btn_, "A+", "A-", a_frame);
-  setupAxisControl(b_plus_btn_, b_minus_btn_, "B+", "B-", b_frame);
-  setupAxisControl(c_plus_btn_, c_minus_btn_, "C+", "C-", c_frame);
-
-  top_row->addWidget(a_frame);
-  top_row->addWidget(b_frame);
-  top_row->addWidget(c_frame);
 
   // Create XY control pad
   QFrame* xy_pad = new QFrame();
@@ -260,7 +225,6 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   bottom_row->addWidget(xy_pad);
   bottom_row->addWidget(z_frame);
 
-  main_layout->addLayout(top_row);
   main_layout->addLayout(bottom_row);
 
   // Connect signals and slots using lambda functions
@@ -271,16 +235,6 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   connect(z_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 0.0, 1.0); });
   connect(z_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 0.0, -1.0); });
   
-  connect(a_plus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(1.0, 0.0, 0.0); });
-  connect(a_minus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(-1.0, 0.0, 0.0); });
-  connect(b_plus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(0.0, 1.0, 0.0); });
-  connect(b_minus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(0.0, -1.0, 0.0); });
-  connect(c_plus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(0.0, 0.0, 1.0); });
-  connect(c_minus_btn_, &QPushButton::clicked, [this]() { handleRotationClick(0.0, 0.0, -1.0); });
-
-  // Swap to the taskspace pose controller
-  controller_manager_client_->switchController({controller_name_}, {joint_controller_name_});
-
   // Install event filter for keyboard events
   widget_->installEventFilter(this);
   widget_->setFocusPolicy(Qt::StrongFocus);
@@ -325,8 +279,7 @@ bool RosJog::eventFilter(QObject* obj, QEvent* event)
 
 void RosJog::shutdownPlugin()
 {
-  controller_manager_client_->switchController({ joint_controller_name_ },
-                                               { controller_name_ });
+
 }
 
 void RosJog::saveSettings(qt_gui_cpp::Settings& plugin_settings,
@@ -343,7 +296,7 @@ void RosJog::restoreSettings(const qt_gui_cpp::Settings& plugin_settings,
 
 bool RosJog::getPose()
 {
-  if (!controller_client_->getPose(current_pose_))
+  if (!controller_client_.getPose(current_pose_))
   {
     ROS_ERROR("Failed to get current pose from controller");
     return false;
@@ -387,46 +340,6 @@ void RosJog::handleMovelClick(double x, double y, double z)
                   << target_position.y() << ", " << target_position.z() << ")");
 }
 
-
-void RosJog::handleRotationClick(double roll, double pitch, double yaw)
-{
-  // Get current pose if this is the first movement
-  if (is_first_movement_)
-  {
-    if (!getPose())
-    {
-      ROS_ERROR("Failed to get initial pose");
-      return;
-    }
-    target_pose_ = current_pose_;
-    is_first_movement_ = false;
-  }
-  return;
-  // Convert current orientation to Eigen quaternion
-  Eigen::Quaterniond current_orientation = quaternionMsgToEigen(target_pose_.orientation);
-
-  double step_size = 0.17;  // Adjust step size for rotation
-
-  // Create incremental rotations for roll, pitch, and yaw
-  Eigen::AngleAxisd roll_rotation(roll * step_size, Eigen::Vector3d::UnitX());
-  Eigen::AngleAxisd pitch_rotation(pitch * step_size, Eigen::Vector3d::UnitY());
-  Eigen::AngleAxisd yaw_rotation(yaw * step_size, Eigen::Vector3d::UnitZ());
-
-  // Apply the rotations to the current orientation
-  Eigen::Quaterniond new_orientation = yaw_rotation * pitch_rotation * roll_rotation * current_orientation;
-
-  // Update the target pose orientation
-  target_pose_.orientation = quaternionEigenToMsg(new_orientation);
-
-  // Move to the target position with the updated orientation
-  movel(Eigen::Vector3d(target_pose_.position.x, target_pose_.position.y, target_pose_.position.z),
-        new_orientation, 0.5);  // 1 second duration
-
-  // Log the movement
-  ROS_INFO_STREAM("Adjusting orientation: roll=" << roll * step_size_ << ", pitch=" << pitch * step_size_
-                  << ", yaw=" << yaw * step_size_);
-}
-
 // Step size control slots
 void RosJog::onStepSliderChanged(int value)
 {
@@ -465,7 +378,7 @@ void RosJog::movel(const Eigen::Vector3d& target_position,
                    double duration)
 {
   geometry_msgs::Pose current_pose;
-  if (!controller_client_->getPose(current_pose))
+  if (!controller_client_.getPose(current_pose))
   {
     ROS_ERROR("Failed to retrieve current pose");
     return;
@@ -532,7 +445,7 @@ void RosJog::executePath(const std::vector<Eigen::Vector3d>& positions,
     setpoint.twist.linear.y = velocities[i].y();
     setpoint.twist.linear.z = velocities[i].z();
 
-    controller_client_->publishSetpoint(setpoint);
+    controller_client_.publishSetpoint(setpoint);
     rate.sleep();
   }
 }
@@ -586,6 +499,32 @@ RosJog::slerpTrajectory(const Eigen::Quaterniond& start,
   auto velocity_func = [](double t) { return Eigen::Vector3d::Zero(); };
 
   return { orientation_func, velocity_func };
+}
+
+void RosJog::populateControllerManagerDropdown(const std::vector<std::string>& controllers) {
+    controller_manager_dropdown_->clear();
+    for (const auto& controller : controllers) {
+        controller_manager_dropdown_->addItem(QString::fromStdString(controller));
+    }
+}
+
+void RosJog::updateCCList(const ros::TimerEvent& event) {
+    std::vector<std::string> controllers = controller_client_.getPotentialConrollers();
+
+    // Check if the list has changed
+    if (controllers != current_controllers_) {
+        current_controllers_ = controllers; // Update the current list
+        populateControllerManagerDropdown(controllers); // Update the dropdown
+    }
+}
+
+void RosJog::onControllerManagerDropdownChanged(int index) {
+    QString selected_controller = controller_manager_dropdown_->itemText(index);
+    ROS_INFO_STREAM("Selected controller: " << selected_controller.toStdString());
+
+    // Perform actions based on the selected controller
+    controller_client_.updateDevice(selected_controller.toStdString());
+    is_first_movement_ = true; // Reset the first movement flag
 }
 
 }  // namespace ros_jog
