@@ -15,34 +15,29 @@
 namespace ros_jog
 {
 
-RosJog::RosJog()
+PoseJog::PoseJog()
   : rqt_gui_cpp::Plugin()
   , widget_(nullptr)
   , step_size_(0.1)  // Default step size
   , current_x_(0.0)
   , current_y_(0.0)
   , current_z_(0.0)
-  , nh_(ros::NodeHandle()) // Initialize nh_
+  , nh_(ros::NodeHandle())  // Initialize nh_
   , is_first_movement_(true)
   , controller_client_()
   , current_controllers_()
 {
-  setObjectName("RosJog");
+  setObjectName("PoseJog");
 
-  double update_freq = 10.0;  // Hz
+  double update_freq = 0.5;  // Hz
   double update_interval = 1.0 / update_freq;
 
   // Create a timer to periodically update the controller manager list
   update_cc_list_timer_ = nh_.createTimer(ros::Duration(update_interval),
-                                          &RosJog::updateCCList, this);
-
+                                          &PoseJog::updateCCList, this);
 }
 
-RosJog::~RosJog()
-{
-}
-
-void RosJog::styleButton(QPushButton* button, const QString& style)
+void PoseJog::styleButton(QPushButton* button, const QString& style)
 {
   button->setMinimumSize(40, 40);
   button->setStyleSheet("QPushButton {" + style +
@@ -55,9 +50,9 @@ void RosJog::styleButton(QPushButton* button, const QString& style)
                         "background-color: #606060;}");
 }
 
-void RosJog::setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn,
-                              const QString& plusText, const QString& minusText,
-                              QWidget* container)
+void PoseJog::setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn,
+                               const QString& plusText,
+                               const QString& minusText, QWidget* container)
 {
   QVBoxLayout* layout = new QVBoxLayout(container);
   layout->setSpacing(2);
@@ -73,14 +68,14 @@ void RosJog::setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn,
   layout->addWidget(minusBtn);
 }
 
-double RosJog::sliderToStepSize(int sliderValue)
+double PoseJog::sliderToStepSize(int sliderValue)
 {
   // Convert slider value (0-1000) to step size (0.1mm - 100mm) logarithmically
   double t = static_cast<double>(sliderValue) / SLIDER_RESOLUTION;
   return MIN_STEP_SIZE * std::pow(MAX_STEP_SIZE / MIN_STEP_SIZE, t);
 }
 
-int RosJog::stepSizeToSlider(double stepSize)
+int PoseJog::stepSizeToSlider(double stepSize)
 {
   // Convert step size to slider value (inverse of sliderToStepSize)
   double t = std::log(stepSize / MIN_STEP_SIZE) /
@@ -88,7 +83,7 @@ int RosJog::stepSizeToSlider(double stepSize)
   return static_cast<int>(t * SLIDER_RESOLUTION);
 }
 
-QString RosJog::formatStepSize(double stepSize)
+QString PoseJog::formatStepSize(double stepSize)
 {
   // Format step size in appropriate units (mm or cm)
   if (stepSize < 0.001)
@@ -105,7 +100,7 @@ QString RosJog::formatStepSize(double stepSize)
   }
 }
 
-QWidget* RosJog::createStepSizeControl()
+QWidget* PoseJog::createStepSizeControl()
 {
   QFrame* frame = new QFrame();
   frame->setFrameStyle(QFrame::Panel | QFrame::Sunken);
@@ -162,23 +157,23 @@ QWidget* RosJog::createStepSizeControl()
 
   // Connect signals
   connect(step_slider_, &QSlider::valueChanged, this,
-          &RosJog::onStepSliderChanged);
+          &PoseJog::onStepSliderChanged);
   connect(mm01_step_btn_, &QPushButton::clicked, this,
-          &RosJog::on01mmStepClicked);
+          &PoseJog::on01mmStepClicked);
   connect(mm1_step_btn_, &QPushButton::clicked, this,
-          &RosJog::on1mmStepClicked);
+          &PoseJog::on1mmStepClicked);
   connect(cm1_step_btn_, &QPushButton::clicked, this,
-          &RosJog::on1cmStepClicked);
+          &PoseJog::on1cmStepClicked);
   connect(cm10_step_btn_, &QPushButton::clicked, this,
-          &RosJog::on10cmStepClicked);
+          &PoseJog::on10cmStepClicked);
 
   return frame;
 }
 
-void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
+void PoseJog::initPlugin(qt_gui_cpp::PluginContext& context)
 {
   widget_ = new QWidget();
-  widget_->setWindowTitle("Move Tool");
+  widget_->setWindowTitle("Pose Jogging Tool");
   widget_->setStyleSheet("background-color: #303030; color: white;");
 
   // Create main layout
@@ -191,7 +186,9 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   main_layout->addWidget(controller_manager_dropdown_);
 
   // Connect the dropdown's signal to the slot
-  connect(controller_manager_dropdown_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RosJog::onControllerManagerDropdownChanged);
+  connect(controller_manager_dropdown_,
+          QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+          &PoseJog::onControllerManagerDropdownChanged);
 
   // Add step size control at the top
   main_layout->addWidget(createStepSizeControl());
@@ -235,14 +232,21 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   main_layout->addWidget(save_joints_btn_);
 
   // Connect signals and slots using lambda functions
-  connect(x_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(1.0, 0.0, 0.0); });
-  connect(x_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(-1.0, 0.0, 0.0); });
-  connect(y_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 1.0, 0.0); });
-  connect(y_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, -1.0, 0.0); });
-  connect(z_plus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 0.0, 1.0); });
-  connect(z_minus_btn_, &QPushButton::clicked, [this]() { handleMovelClick(0.0, 0.0, -1.0); });
-  connect(save_joints_btn_, &QPushButton::clicked, this, &RosJog::handleSaveJointStates);
-  
+  connect(x_plus_btn_, &QPushButton::clicked,
+          [this]() { handleMovelClick(1.0, 0.0, 0.0); });
+  connect(x_minus_btn_, &QPushButton::clicked,
+          [this]() { handleMovelClick(-1.0, 0.0, 0.0); });
+  connect(y_plus_btn_, &QPushButton::clicked,
+          [this]() { handleMovelClick(0.0, 1.0, 0.0); });
+  connect(y_minus_btn_, &QPushButton::clicked,
+          [this]() { handleMovelClick(0.0, -1.0, 0.0); });
+  connect(z_plus_btn_, &QPushButton::clicked,
+          [this]() { handleMovelClick(0.0, 0.0, 1.0); });
+  connect(z_minus_btn_, &QPushButton::clicked,
+          [this]() { handleMovelClick(0.0, 0.0, -1.0); });
+  connect(save_joints_btn_, &QPushButton::clicked, this,
+          &PoseJog::handleSaveJointStates);
+
   // Install event filter for keyboard events
   widget_->installEventFilter(this);
   widget_->setFocusPolicy(Qt::StrongFocus);
@@ -250,8 +254,10 @@ void RosJog::initPlugin(qt_gui_cpp::PluginContext& context)
   context.addWidget(widget_);
 }
 
-void RosJog::handleKeyRelease(int key) {
-  switch (key) {
+void PoseJog::handleKeyRelease(int key)
+{
+  switch (key)
+  {
     case Qt::Key_Right:
       handleMovelClick(1.0, 0.0, 0.0);
       break;
@@ -273,11 +279,13 @@ void RosJog::handleKeyRelease(int key) {
   }
 }
 
-bool RosJog::eventFilter(QObject* obj, QEvent* event)
+bool PoseJog::eventFilter(QObject* obj, QEvent* event)
 {
-  if (event->type() == QEvent::KeyRelease) {
+  if (event->type() == QEvent::KeyRelease)
+  {
     QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
-    if (!keyEvent->isAutoRepeat()) {  // Ignore auto-repeat key releases
+    if (!keyEvent->isAutoRepeat())
+    {  // Ignore auto-repeat key releases
       handleKeyRelease(keyEvent->key());
     }
     return true;
@@ -285,24 +293,21 @@ bool RosJog::eventFilter(QObject* obj, QEvent* event)
   return QObject::eventFilter(obj, event);
 }
 
-void RosJog::shutdownPlugin()
-{
+void PoseJog::shutdownPlugin() {}
 
-}
-
-void RosJog::saveSettings(qt_gui_cpp::Settings& plugin_settings,
-                          qt_gui_cpp::Settings& instance_settings) const
+void PoseJog::saveSettings(qt_gui_cpp::Settings& plugin_settings,
+                           qt_gui_cpp::Settings& instance_settings) const
 {
   // No settings to save
 }
 
-void RosJog::restoreSettings(const qt_gui_cpp::Settings& plugin_settings,
-                             const qt_gui_cpp::Settings& instance_settings)
+void PoseJog::restoreSettings(const qt_gui_cpp::Settings& plugin_settings,
+                              const qt_gui_cpp::Settings& instance_settings)
 {
   // No settings to restore
 }
 
-bool RosJog::getPose()
+bool PoseJog::getPose()
 {
   if (!controller_client_.getPose(current_pose_))
   {
@@ -312,7 +317,7 @@ bool RosJog::getPose()
   return true;
 }
 
-void RosJog::handleMovelClick(double x, double y, double z)
+void PoseJog::handleMovelClick(double x, double y, double z)
 {
   // Get current pose if this is the first movement
   if (is_first_movement_)
@@ -344,46 +349,47 @@ void RosJog::handleMovelClick(double x, double y, double z)
   movel(target_position, target_orientation, 0.5);  // 1 second duration
 
   // Log the movement
-  ROS_INFO_STREAM("Moving to position: (" << target_position.x() << ", " 
-                  << target_position.y() << ", " << target_position.z() << ")");
+  ROS_INFO_STREAM("Moving to position: (" << target_position.x() << ", "
+                                          << target_position.y() << ", "
+                                          << target_position.z() << ")");
 }
 
 // Step size control slots
-void RosJog::onStepSliderChanged(int value)
+void PoseJog::onStepSliderChanged(int value)
 {
   step_size_ = sliderToStepSize(value);
   step_size_label_->setText(formatStepSize(step_size_));
 }
 
-void RosJog::setStepSize(double value)
+void PoseJog::setStepSize(double value)
 {
   step_slider_->setValue(stepSizeToSlider(value));
 }
 
-void RosJog::on01mmStepClicked()
+void PoseJog::on01mmStepClicked()
 {
   setStepSize(0.0001);  // 0.1 mm
 }
 
-void RosJog::on1mmStepClicked()
+void PoseJog::on1mmStepClicked()
 {
   setStepSize(0.001);  // 1 mm
 }
 
-void RosJog::on1cmStepClicked()
+void PoseJog::on1cmStepClicked()
 {
   setStepSize(0.01);  // 1 cm
 }
 
-void RosJog::on10cmStepClicked()
+void PoseJog::on10cmStepClicked()
 {
   setStepSize(0.1);  // 10 cm
 }
 
 // Motion planning functions implementation
-void RosJog::movel(const Eigen::Vector3d& target_position,
-                   const Eigen::Quaterniond& target_orientation,
-                   double duration)
+void PoseJog::movel(const Eigen::Vector3d& target_position,
+                    const Eigen::Quaterniond& target_orientation,
+                    double duration)
 {
   geometry_msgs::Pose current_pose;
   if (!controller_client_.getPose(current_pose))
@@ -402,11 +408,11 @@ void RosJog::movel(const Eigen::Vector3d& target_position,
                     target_orientation, duration);
 }
 
-void RosJog::executeLinearPath(const Eigen::Vector3d& start_position,
-                               const Eigen::Vector3d& end_position,
-                               const Eigen::Quaterniond& start_orientation,
-                               const Eigen::Quaterniond& end_orientation,
-                               double duration)
+void PoseJog::executeLinearPath(const Eigen::Vector3d& start_position,
+                                const Eigen::Vector3d& end_position,
+                                const Eigen::Quaterniond& start_orientation,
+                                const Eigen::Quaterniond& end_orientation,
+                                double duration)
 {
   int num_points = static_cast<int>(hz_ * duration);
   std::vector<double> time_points(num_points);
@@ -434,9 +440,9 @@ void RosJog::executeLinearPath(const Eigen::Vector3d& start_position,
   executePath(positions, velocities, orientations);
 }
 
-void RosJog::executePath(const std::vector<Eigen::Vector3d>& positions,
-                         const std::vector<Eigen::Vector3d>& velocities,
-                         const std::vector<Eigen::Quaterniond>& orientations)
+void PoseJog::executePath(const std::vector<Eigen::Vector3d>& positions,
+                          const std::vector<Eigen::Vector3d>& velocities,
+                          const std::vector<Eigen::Quaterniond>& orientations)
 {
   ros::Rate rate(hz_);
   taskspace_control_msgs::PoseTwistSetpoint setpoint;
@@ -460,13 +466,13 @@ void RosJog::executePath(const std::vector<Eigen::Vector3d>& positions,
 
 // Helper functions implementation
 Eigen::Quaterniond
-RosJog::quaternionMsgToEigen(const geometry_msgs::Quaternion& msg)
+PoseJog::quaternionMsgToEigen(const geometry_msgs::Quaternion& msg)
 {
   return Eigen::Quaterniond(msg.w, msg.x, msg.y, msg.z);
 }
 
 geometry_msgs::Quaternion
-RosJog::quaternionEigenToMsg(const Eigen::Quaterniond& q)
+PoseJog::quaternionEigenToMsg(const Eigen::Quaterniond& q)
 {
   geometry_msgs::Quaternion msg;
   msg.x = q.x();
@@ -478,8 +484,8 @@ RosJog::quaternionEigenToMsg(const Eigen::Quaterniond& q)
 
 std::pair<std::function<Eigen::Vector3d(double)>,
           std::function<Eigen::Vector3d(double)>>
-RosJog::linearTrajectory(const Eigen::Vector3d& start,
-                         const Eigen::Vector3d& end, double duration)
+PoseJog::linearTrajectory(const Eigen::Vector3d& start,
+                          const Eigen::Vector3d& end, double duration)
 {
   Eigen::Vector3d delta = end - start;
 
@@ -495,8 +501,8 @@ RosJog::linearTrajectory(const Eigen::Vector3d& start,
 
 std::pair<std::function<Eigen::Quaterniond(double)>,
           std::function<Eigen::Vector3d(double)>>
-RosJog::slerpTrajectory(const Eigen::Quaterniond& start,
-                        const Eigen::Quaterniond& end, double duration)
+PoseJog::slerpTrajectory(const Eigen::Quaterniond& start,
+                         const Eigen::Quaterniond& end, double duration)
 {
   auto orientation_func = [start, end, duration](double t) {
     double s = t / duration;
@@ -509,66 +515,76 @@ RosJog::slerpTrajectory(const Eigen::Quaterniond& start,
   return { orientation_func, velocity_func };
 }
 
-void RosJog::populateControllerManagerDropdown(const std::vector<std::string>& controllers) {
-    controller_manager_dropdown_->clear();
-    for (const auto& controller : controllers) {
-        controller_manager_dropdown_->addItem(QString::fromStdString(controller));
-    }
-}
-
-void RosJog::updateCCList(const ros::TimerEvent& event) {
-    std::vector<std::string> controllers = controller_client_.getPotentialConrollers();
-
-    // Check if the list has changed
-    if (controllers != current_controllers_) {
-        current_controllers_ = controllers; // Update the current list
-        populateControllerManagerDropdown(controllers); // Update the dropdown
-    }
-}
-
-void RosJog::onControllerManagerDropdownChanged(int index) {
-    QString selected_controller = controller_manager_dropdown_->itemText(index);
-    ROS_INFO_STREAM("Selected controller: " << selected_controller.toStdString());
-
-    // Perform actions based on the selected controller
-    controller_client_.updateDevice(selected_controller.toStdString());
-    is_first_movement_ = true; // Reset the first movement flag
-}
-
-void RosJog::handleSaveJointStates() 
+void PoseJog::populateControllerManagerDropdown(
+    const std::vector<std::string>& controllers)
 {
-    std::vector<double> joint_positions = controller_client_.getJointPositions();
-    
-// Get home directory path
-    const char* home_dir = getenv("HOME");
-    if (!home_dir) {
-        ROS_ERROR("Could not get home directory path");
-        return;
+  controller_manager_dropdown_->clear();
+  for (const auto& controller : controllers)
+  {
+    controller_manager_dropdown_->addItem(QString::fromStdString(controller));
+  }
+}
+
+void PoseJog::updateCCList(const ros::TimerEvent& event)
+{
+  std::vector<std::string> controllers = controller_client_.getControllers();
+
+  // Check if the list has changed
+  if (controllers != current_controllers_)
+  {
+    current_controllers_ = controllers;              // Update the current list
+    populateControllerManagerDropdown(controllers);  // Update the dropdown
+  }
+}
+
+void PoseJog::onControllerManagerDropdownChanged(int index)
+{
+  QString selected_controller = controller_manager_dropdown_->itemText(index);
+  ROS_INFO_STREAM("Selected controller: " << selected_controller.toStdString());
+
+  // Perform actions based on the selected controller
+  controller_client_.updateDevice(selected_controller.toStdString());
+  is_first_movement_ = true;  // Reset the first movement flag
+}
+
+void PoseJog::handleSaveJointStates()
+{
+  std::vector<double> joint_positions = controller_client_.getJointPositions();
+
+  // Get home directory path
+  const char* home_dir = getenv("HOME");
+  if (!home_dir)
+  {
+    ROS_ERROR("Could not get home directory path");
+    return;
+  }
+
+  std::string filepath = std::string(home_dir) + "/workspaces/joint_states.csv";
+  std::ofstream file;
+  file.open(filepath, std::ios::app);  // Open in append mode
+
+  if (!file.is_open())
+  {
+    ROS_ERROR("Failed to open file for writing: %s", filepath.c_str());
+    return;
+  }
+
+  // Write joint positions as CSV with 6 decimal places
+  file << std::fixed << std::setprecision(6);
+  for (size_t i = 0; i < joint_positions.size(); ++i)
+  {
+    file << joint_positions[i];
+    if (i < joint_positions.size() - 1)
+    {
+      file << ",";
     }
-    
-    std::string filepath = std::string(home_dir) + "/workspaces/joint_states.csv";
-    std::ofstream file;
-    file.open(filepath, std::ios::app); // Open in append mode
-    
-    if (!file.is_open()) {
-        ROS_ERROR("Failed to open file for writing: %s", filepath.c_str());
-        return;
-    }
-    
-    // Write joint positions as CSV with 6 decimal places
-    file << std::fixed << std::setprecision(6);
-    for (size_t i = 0; i < joint_positions.size(); ++i) {
-        file << joint_positions[i];
-        if (i < joint_positions.size() - 1) {
-            file << ",";
-        }
-    }
-    file << "\n";
-    file.close();
-    
-    ROS_INFO("Joint states saved to: %s", filepath.c_str());
+  }
+  file << "\n";
+  file.close();
+
+  ROS_INFO("Joint states saved to: %s", filepath.c_str());
 }
 
 }  // namespace ros_jog
 
-PLUGINLIB_EXPORT_CLASS(ros_jog::RosJog, rqt_gui_cpp::Plugin)
+PLUGINLIB_EXPORT_CLASS(ros_jog::PoseJog, rqt_gui_cpp::Plugin)

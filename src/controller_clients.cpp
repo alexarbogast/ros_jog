@@ -1,93 +1,163 @@
 #include "ros_jog/controller_clients.h"
 #include <ros/ros.h>
 #include <ros/master.h>
+#include <xmlrpcpp/XmlRpcValue.h>
 #include <vector>
 #include <algorithm>
 
 namespace ros_jog
 {
 
-ControllerClient::ControllerClient()
+//--------------------------------------------------------------
+// ControllerBase Class
+//--------------------------------------------------------------
+
+ControllerBase::ControllerBase(std::string controller_service_name)
 {
-  // Initialize the controller by simply searching for all controller managers
-  potential_controllers_ = GetPoseControllers();
-  if (potential_controllers_.empty())
+  controller_service_name_ = controller_service_name;
+  std::vector<std::string> controllers = getControllers();
+  if (controllers.empty())
   {
-    ROS_ERROR("No pose controllers found in the ROS network.");
+    ROS_ERROR(
+        "No controllers found in the ROS network with this service available.");
     return;
   }
-  ROS_INFO("Found %zu pose controllers in the ROS network.", potential_controllers_.size());
-  for (const auto& controller : potential_controllers_)
+  ROS_INFO("Found %zu controllers in the ROS network.", controllers.size());
+  for (const auto& controller : controllers)
   {
     ROS_INFO("Pose controller found: %s", controller.c_str());
   }
 }
 
 //--------------------------------------------------------------
-// Function to get all available pose controllers
-// in the ROS network
 
-std::vector<std::string> ControllerClient::GetPoseControllers()
+void ControllerBase::updateDevice(const std::string& device_name)
 {
-    std::vector<std::string> potential_managers;
+  // Update the controller name
+  name_ = device_name;
+  connected_ = true;
 
-    // Query the ROS master for all available services
-    ros::master::V_TopicInfo topics;
-    if (!ros::master::getTopics(topics))
-    {
-        ROS_ERROR("Failed to query ROS master for topics.");
-        return potential_managers;
-    }
+  // Extract the text before the previous backslash
+  size_t last_slash_pos = name_.find_last_of('/');
+  ns_ = (last_slash_pos != std::string::npos) ?
+            name_.substr(0, last_slash_pos) :
+            "";
 
-    // Define the match string for controller manager topics
-    const std::string match_str = "/parameter_descriptions";
+  ros::NodeHandle nh_(name_);
 
-    // Iterate through the list of topics
-    for (const auto& topic : topics)
-    {
-        const std::string& topic_name = topic.name;
-        // ROS_INFO("Topic name: %s", topic_name.c_str());
+  // Create publisher and service client
+  joint_state_sub_ = nh_.subscribe<sensor_msgs::JointState>(
+      ns_ + "/joint_states", 1, &ControllerBase::jointStateCallback, this);
 
-        // Check if the topic name contains the match string
-        if (topic_name.find(match_str) != std::string::npos)
-        {
-            // Extract the namespace of the 
-            std::string ns = topic_name.substr(0, topic_name.find(match_str));
-            if (ns.empty())
-            {
-                // If the namespace is empty, it means the topic is in the root namespace
-                ns = "/";
-            }
-            potential_managers.push_back(ns);
-        }
-    }
-
-    // Sort the potential managers
-    std::sort(potential_managers.begin(), potential_managers.end());
-
-    return potential_managers;
+  ROS_INFO("Connected to controller: %s", name_.c_str());
 }
 
 //--------------------------------------------------------------
 
-std::vector<std::string> ControllerClient::getPotentialConrollers()
+std::vector<std::string> ControllerBase::getControllers()
 {
-  potential_controllers_ = GetPoseControllers();
-  return potential_controllers_;
+  std::vector<std::string> controllers;
+  XmlRpc::XmlRpcValue args, result, payload;
+
+  args[0] = ros::this_node::getName();
+  if (!ros::master::execute("getSystemState", args, result, payload, true))
+  {
+    ROS_ERROR("Failed to query ROS master for system state.");
+    return controllers;
+  }
+
+  // Extract the list of services from the payload
+  XmlRpc::XmlRpcValue& services = payload[2];
+
+  for (int i = 0; i < services.size(); i++)
+  {
+    std::string service_name = static_cast<std::string>(services[i][0]);
+
+    // Check if the topic name contains the match string
+    if (service_name.find(controller_service_name_) != std::string::npos)
+    {
+      // Extract the namespace of the
+      std::string ns =
+          service_name.substr(0, service_name.find(controller_service_name_));
+      if (ns.empty())
+      {
+        // If the namespace is empty, it means the topic is in the root
+        // namespace
+        ns = "/";
+      }
+      controllers.push_back(ns);
+    }
+  }
+
+  return controllers;
 }
 
 //--------------------------------------------------------------
 
-void ControllerClient::publishSetpoint(
+void ControllerBase::jointStateCallback(
+    const sensor_msgs::JointState::ConstPtr& msg)
+{
+  // Save the joint positions in an array of floats
+  std::lock_guard<std::mutex> lock(joint_positions_mutex_);
+  joint_positions_ = { msg->position.begin(), msg->position.end() };
+}
+
+//--------------------------------------------------------------
+
+std::vector<double> ControllerBase::getJointPositions()
+{
+  std::lock_guard<std::mutex> lock(joint_positions_mutex_);
+  return joint_positions_;
+}
+
+//--------------------------------------------------------------
+// PoseClient Class
+//--------------------------------------------------------------
+
+PoseClient::PoseClient(const std::string& service) : ControllerBase(service) {}
+
+//--------------------------------------------------------------
+
+void PoseClient::updateDevice(const std::string& pose_controller_name)
+{
+  ControllerBase::updateDevice(pose_controller_name);
+
+  std::string setpoint_topic;
+  if (!nh_.getParam(name_ + "/setpoint_topic", setpoint_topic))
+  {
+    ROS_ERROR("Failed to get setpoint_topic parameter for controller %s",
+              name_.c_str());
+    return;
+  }
+
+  setpoint_pub_ = nh_.advertise<taskspace_control_msgs::PoseTwistSetpoint>(
+      name_ + "/" + setpoint_topic, 1, true);
+  pose_client_ = nh_.serviceClient<taskspace_control_msgs::QueryPose>(name_ +
+                                                                      "/query_"
+                                                                      "pose");
+}
+
+//--------------------------------------------------------------
+
+void PoseClient::publishSetpoint(
     const taskspace_control_msgs::PoseTwistSetpoint& setpoint)
 {
+  if (!connected_)
+  {
+    return;
+  }
   setpoint_pub_.publish(setpoint);
 }
 
 //--------------------------------------------------------------
 
-bool ControllerClient::getPose(geometry_msgs::Pose& pose)
+bool PoseClient::getPose(geometry_msgs::Pose& pose)
 {
+  if (!connected_)
+  {
+    return false;
+  }
+
   taskspace_control_msgs::QueryPose srv;
   if (!pose_client_.call(srv))
   {
@@ -100,57 +170,72 @@ bool ControllerClient::getPose(geometry_msgs::Pose& pose)
 }
 
 //--------------------------------------------------------------
+// TrajClient Class
+//--------------------------------------------------------------
 
-void ControllerClient::updateDevice(const std::string& pose_controller_name)
+TrajClient::TrajClient()
+  : ControllerBase("/query_state"), ac_(nullptr), joint_names_()
 {
-  // Update the controller name
-  name_ = pose_controller_name;
+}
 
-  // Extract the text before the previous backslash
-  size_t last_slash_pos = name_.find_last_of('/');
-  ns_ = (last_slash_pos != std::string::npos) 
-                                      ? name_.substr(0, last_slash_pos) 
-                                      : "";
+//--------------------------------------------------------------
 
-  // Initialize the ROS node handle
-  ros::NodeHandle nh(name_);
+void TrajClient::updateDevice(const std::string& pose_controller_name)
+{
+  ControllerBase::updateDevice(pose_controller_name);
 
-  std::string setpoint_topic;
-  if (!nh.getParam(name_ + "/setpoint_topic", setpoint_topic))
+  ac_ = std::make_unique<
+      actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>>(
+      name_ + "/follow_joint_trajectory", true);
+  ac_->waitForServer();
+
+  // Get Joint Names
+  joint_names_.clear();
+  if (nh_.getParam(name_ + "/joints", joint_names_))
   {
-    ROS_ERROR("Failed to get setpoint_topic parameter for controller %s",
+  }
+  else
+  {
+    ROS_ERROR("Failed to get joints parameter for controller %s",
               name_.c_str());
+  }
+
+  ROS_INFO("Connected to simple action client");
+}
+
+//--------------------------------------------------------------
+
+void TrajClient::publishJoints(double position, int index)
+{
+  if (!ac_)
+  {
+    ROS_ERROR("Action client not initialized!");
     return;
   }
 
-  // Create publisher and service client
-  setpoint_pub_ = nh.advertise<taskspace_control_msgs::PoseTwistSetpoint>(
-      name_ + "/" + setpoint_topic, 1, true);
-  pose_client_ =
-      nh.serviceClient<taskspace_control_msgs::QueryPose>(name_ + "/query_"
-                                                                  "pose");
-  joint_state_sub_ =
-      nh.subscribe<sensor_msgs::JointState>(ns_ + "/joint_states", 1,
-                                            &ControllerClient::jointStateCallback,
-                                            this);
 
+  control_msgs::FollowJointTrajectoryGoal goal;
+  goal.trajectory.joint_names = joint_names_;  // Replace with your joint names
 
-  ROS_INFO("Connected to controller: %s", name_.c_str());
+  trajectory_msgs::JointTrajectoryPoint point;
+  point.positions = std::vector<double>(joint_names_.size(), 0.0);
+  ;  // Target positions
+  {
+    std::lock_guard<std::mutex> lock(joint_positions_mutex_);
+    point.positions = joint_positions_;
+  }
+  point.positions[index] = position;
+  point.time_from_start = ros::Duration(0.3);  // 2 seconds to reach
+  point.velocities = std::vector<double>(joint_names_.size(), 0.0);
+  ;
+  point.accelerations = std::vector<double>(joint_names_.size(), 0.0);
+  ;
+
+  goal.trajectory.points.push_back(point);
+
+  ac_->sendGoal(goal);
 }
 
 //--------------------------------------------------------------
 
-void ControllerClient::jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg)
-{
-    // Save the joint positions in an array of floats
-    joint_positions_ = {msg->position.begin(), msg->position.end()};
-}
-
-//--------------------------------------------------------------
-std::vector<double> ControllerClient::getJointPositions()
-{
-    return joint_positions_;
-}
-//--------------------------------------------------------------
-
-} // namespace ros_jog
+}  // namespace ros_jog

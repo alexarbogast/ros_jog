@@ -53,7 +53,8 @@ include_directories(
 )
 
 set(ros_jog_SRCS
-  src/ros_jog.cpp
+  src/joint_jog.cpp
+  src/pose_jog.cpp
   src/controller_clients.cpp
 )
 

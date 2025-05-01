@@ -1,7 +1,7 @@
 <library path="lib/libros_jog">
-  <class name="ros_jog/RosJog" type="ros_jog::RosJog" base_class_type="rqt_gui_cpp::Plugin">
+  <class name="ros_jog/PoseJog" type="ros_jog::PoseJog" base_class_type="rqt_gui_cpp::Plugin">
     <description>
-      A simple RQT plugin for jogging a robot arm using a pose controller
+      A simple RQT plugin for jogging a robot arm using a cartesian controller
     </description>
     <qtgui>
       <group>
@@ -9,9 +9,24 @@
         <icon type="theme">folder</icon>
         <statustip>Plugins related to robot control.</statustip>
       </group>
-      <label>ROS Jogger</label>
+      <label>ROS Pose Jogger</label>
       <icon type="theme">input-mouse</icon>
-      <statustip>A plugin to publish XYZ values.</statustip>
+      <statustip>A plugin for controlling robotic manipulators using cartesian coordinates.</statustip>
+    </qtgui>
+  </class>
+  <class name="ros_jog/JointJog" type="ros_jog::JointJog" base_class_type="rqt_gui_cpp::Plugin">
+    <description>
+      A simple RQT plugin for jogging a robot arm using Joint Trajectory Control
+    </description>
+    <qtgui>
+      <group>
+        <label>Robot Tools</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins related to robot control.</statustip>
+      </group>
+      <label>Joint Jogger</label>
+      <icon type="theme">input-mouse</icon>
+      <statustip>A plugin for controlling a robot arm using joint trajectory control.</statustip>
     </qtgui>
   </class>
 </library>

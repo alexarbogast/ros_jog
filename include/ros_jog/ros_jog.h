@@ -22,8 +22,8 @@
 #include <QKeyEvent>
 #include <QSlider>
 #include <QLabel>
-#include <QTimer>
 #include <QComboBox>
+#include <QVBoxLayout>
 #include <cmath>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
@@ -40,12 +40,50 @@ using namespace std;
 namespace ros_jog
 {
 
-class RosJog : public rqt_gui_cpp::Plugin
+class JointJog : public rqt_gui_cpp::Plugin
 {
   Q_OBJECT
 public:
-  RosJog();
-  ~RosJog();
+  JointJog();
+  virtual void initPlugin(qt_gui_cpp::PluginContext& context);
+  virtual void shutdownPlugin();
+  virtual void saveSettings(qt_gui_cpp::Settings& plugin_settings,
+                            qt_gui_cpp::Settings& instance_settings) const;
+  virtual void restoreSettings(const qt_gui_cpp::Settings& plugin_settings,
+                               const qt_gui_cpp::Settings& instance_settings);
+
+private:
+  // dropdown controls
+  void updateCCList(const ros::TimerEvent& event);
+  void populateControllerManagerDropdown(
+      const std::vector<std::string>& controllers);
+  void onControllerManagerDropdownChanged(int index);
+
+  void updateJsVals();
+
+  // joint widget creator
+  void rebuildWidget(const int count);
+
+  QWidget* widget_;
+
+  QComboBox* controller_manager_dropdown_;
+
+  QVBoxLayout* joint_parent_;
+  std::vector<QLabel*> joint_labels_;
+
+  // ROS Controllers
+  ros::NodeHandle nh_;
+  TrajClient controller_client_;
+  ros::Timer update_cc_list_timer_;
+  std::vector<std::string> current_controllers_;  // List of controller managers
+  int num_joints_ = 0;
+};
+
+class PoseJog : public rqt_gui_cpp::Plugin
+{
+  Q_OBJECT
+public:
+  PoseJog();
   virtual void initPlugin(qt_gui_cpp::PluginContext& context);
   virtual void shutdownPlugin();
   virtual void saveSettings(qt_gui_cpp::Settings& plugin_settings,
@@ -59,7 +97,8 @@ protected:
 private:
   // dropdown controls
   void updateCCList(const ros::TimerEvent& event);
-  void populateControllerManagerDropdown(const std::vector<std::string>& controllers);
+  void populateControllerManagerDropdown(
+      const std::vector<std::string>& controllers);
   void onControllerManagerDropdownChanged(int index);
 
   // Step size controls
@@ -98,9 +137,9 @@ private:
   bool getPose();
   void handleMovelClick(double x, double y, double z);
   // void handleRotationClick(double x, double y, double z);
-  void setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn, 
-                       const QString& plusText, const QString& minusText,
-                       QWidget* container);
+  void setupAxisControl(QPushButton* plusBtn, QPushButton* minusBtn,
+                        const QString& plusText, const QString& minusText,
+                        QWidget* container);
   void styleButton(QPushButton* button, const QString& style);
   QWidget* createStepSizeControl();
   void handleKeyRelease(int key);
@@ -133,7 +172,7 @@ private:
   double current_z_;
 
   ros::NodeHandle nh_;
-  ControllerClient controller_client_;
+  PoseClient controller_client_;
   ros::Timer update_cc_list_timer_;
   std::vector<std::string> current_controllers_;  // List of controller managers
 

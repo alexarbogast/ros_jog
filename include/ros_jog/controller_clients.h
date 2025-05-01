@@ -19,35 +19,67 @@
 #include <taskspace_control_msgs/PoseTwistSetpoint.h>
 #include <taskspace_control_msgs/QueryPose.h>
 #include <sensor_msgs/JointState.h>
+#include <actionlib/client/simple_action_client.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
+#include <trajectory_msgs/JointTrajectory.h>
 #include <string>
 #include <vector>
+#include <mutex>
+
+using namespace std;
 
 namespace ros_jog
 {
 
-class ControllerClient
+class ControllerBase
 {
 public:
-  ControllerClient();
+  ControllerBase(string controller_service_name);
 
-  
-  void publishSetpoint(const taskspace_control_msgs::PoseTwistSetpoint& setpoint);
-  bool getPose(geometry_msgs::Pose& pose);
-  void updateDevice(const std::string& device_name);
-  std::vector<std::string> getPotentialConrollers();
+  virtual void updateDevice(const string& device_name);
+  vector<string> getControllers();
   void jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
-  std::vector<double> getJointPositions();
+  vector<double> getJointPositions();
+
+protected:
+  string name_;
+  string ns_;
+  string controller_service_name_;
+  vector<double> joint_positions_;
+  ros::Subscriber joint_state_sub_;
+  bool connected_ = false;
+  ros::NodeHandle nh_;
+  std::mutex joint_positions_mutex_;
+};
+
+class PoseClient : public ControllerBase
+{
+public:
+  PoseClient(const std::string& service = "/query_pose");
+
+  void updateDevice(const string& device_name) override;
+  void
+  publishSetpoint(const taskspace_control_msgs::PoseTwistSetpoint& setpoint);
+  bool getPose(geometry_msgs::Pose& pose);
 
 private:
-  std::vector<std::string> GetPoseControllers();
-
-  std::vector<std::string> potential_controllers_;
-  std::string name_;
-  std::string ns_;
-  std::vector<double> joint_positions_;
   ros::Publisher setpoint_pub_;
   ros::ServiceClient pose_client_;
-  ros::Subscriber joint_state_sub_;
+};
+
+class TrajClient : public ControllerBase
+{
+public:
+  TrajClient();
+
+  void updateDevice(const string& device_name) override;
+  void publishJoints(double value, int index);
+
+private:
+  std::unique_ptr<
+      actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>>
+      ac_;
+  std::vector<std::string> joint_names_;
 };
 
 }  // namespace ros_jog

@@ -2,7 +2,7 @@
 <package format="2">
   <name>ros_jog</name>
   <version>0.1.0</version>
-  <description>A simple ROS rqt plugin for publishing xyz values</description>
+  <description>A simple ROS rqt plugin for jogging a multi-link manipulator using cartesian coordinates</description>
   <author>Alex Arbogast</author>
   <author>Rowan Ramamurthy</author>
   <maintainer email="arbogastaw@gmail.com">Alex Arbogast</maintainer>
